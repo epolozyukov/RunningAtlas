@@ -1,0 +1,274 @@
+/* ── Globe stage ───────────────────────────────────────────────────── */
+.globe-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.globe-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 48% 52% at calc(50% + var(--globe-shift, 0px)) 52%, rgba(120, 160, 180, 0.09), transparent 70%),
+    radial-gradient(ellipse 90% 70% at 50% 120%, rgba(232, 121, 92, 0.035), transparent 60%);
+}
+
+@media (min-width: 1100px) {
+  .globe-glow {
+    --globe-shift: 150px; /* matches globeOffset in App */
+  }
+}
+
+.globe-mount {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.4s var(--ease);
+  cursor: grab;
+  touch-action: none;
+}
+.globe-mount:active {
+  cursor: grabbing;
+}
+.globe-stage.is-ready .globe-mount {
+  opacity: 1;
+}
+
+.globe-legend {
+  position: absolute;
+  right: var(--gutter);
+  bottom: 28px;
+  display: flex;
+  gap: 18px;
+  font-size: 11px;
+  color: var(--text-2);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.explore.has-panel .globe-legend,
+.explore.is-journey .globe-legend {
+  opacity: 0;
+}
+.globe-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.globe-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.globe-legend .legend-pb {
+  width: 9px;
+  height: 9px;
+  background: transparent;
+  border: 1.5px solid var(--pb);
+}
+
+/* ── Markers ───────────────────────────────────────────────────────── */
+.gm {
+  --size: 10px;
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: opacity 0.35s var(--ease), filter 0.35s var(--ease);
+  outline: none;
+  /* NB: never animate `transform` on .gm itself — globe.gl positions it via inline transform. */
+}
+
+.gm__dot,
+.gm__halo {
+  animation: gm-in 0.7s var(--ease) backwards;
+}
+
+@keyframes gm-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+.gm--hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.gm__dot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1.5px rgba(16, 20, 22, 0.85),
+    0 0 12px rgba(0, 0, 0, 0.4);
+  display: grid;
+  place-items: center;
+  transition: transform 0.3s var(--ease);
+}
+
+.gm__count {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  color: #101416;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* PB halo — a thin accent ring, subtle not shouty */
+.gm__halo {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1.25px solid transparent;
+  pointer-events: none;
+}
+.gm--pb .gm__halo {
+  border-color: rgba(242, 161, 138, 0.85);
+}
+
+.gm:hover .gm__dot,
+.gm:focus-visible .gm__dot,
+.gm--selected .gm__dot {
+  transform: scale(1.3);
+}
+.gm:focus-visible .gm__halo {
+  border-color: var(--text);
+}
+.gm--dimmed {
+  opacity: 0.45;
+}
+.gm--dimmed:hover {
+  opacity: 1;
+}
+
+/* Labels */
+.gm__label {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 9px);
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+.gm[data-label='left'] .gm__label {
+  left: auto;
+  right: calc(100% + 9px);
+  align-items: flex-end;
+}
+.gm[data-label='bottom'] .gm__label {
+  top: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+}
+
+.gm__city {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.9),
+    0 0 10px rgba(10, 14, 16, 0.9);
+}
+
+.gm__races {
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.gm__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 7px 3px 6px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: rgba(16, 20, 22, 0.82);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+  transition: border-color 0.2s, background 0.2s;
+}
+.gm__chip:hover {
+  border-color: var(--c);
+  background: rgba(23, 29, 31, 0.95);
+}
+.gm__chip i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c);
+}
+.gm__chip-year {
+  color: var(--text-2);
+}
+.gm__chip-pb {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--pb);
+}
+
+/* Zoom-dependent detail — see ZoomBucket in GlobeView.tsx */
+.gm:hover .gm__label,
+.gm:focus-visible .gm__label,
+.gm--selected .gm__label,
+.globe-stage[data-zoom='mid'] .gm--multi .gm__label,
+.globe-stage[data-zoom='mid'] .gm--pb .gm__label,
+.globe-stage[data-zoom='near'] .gm__label,
+.globe-stage[data-zoom='close'] .gm__label {
+  opacity: 1;
+}
+.globe-stage[data-zoom='mid'] .gm--dimmed:not(:hover) .gm__label {
+  opacity: 0;
+}
+
+.globe-stage[data-zoom='near'] .gm:hover .gm__races,
+.globe-stage[data-zoom='near'] .gm--selected .gm__races,
+.globe-stage[data-zoom='close'] .gm__races {
+  display: flex;
+}
+.globe-stage[data-zoom='near'] .gm:hover .gm__label,
+.globe-stage[data-zoom='near'] .gm--selected .gm__label,
+.globe-stage[data-zoom='close'] .gm__label {
+  pointer-events: auto;
+}
+
+/* Hovered / selected marker always paints above its neighbours
+   (CSS2DRenderer writes an inline z-index each frame). */
+.gm:hover,
+.gm:focus-visible,
+.gm--selected {
+  z-index: 100000 !important;
+}
+.gm--selected .gm__city,
+.gm:hover .gm__city {
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .globe-legend {
+    display: none;
+  }
+  /* larger tap area without enlarging visuals */
+  .gm::after {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+  }
+}

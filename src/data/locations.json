@@ -1,0 +1,22 @@
+[
+  { "id": "almaty", "city": "Almaty", "country": "Kazakhstan", "lat": 43.2389, "lng": 76.8897 },
+  { "id": "kyiv", "city": "Kyiv", "country": "Ukraine", "lat": 50.4501, "lng": 30.5234 },
+  { "id": "jerusalem", "city": "Jerusalem", "country": "Israel", "lat": 31.7683, "lng": 35.2137 },
+  { "id": "cherkasy", "city": "Cherkasy", "country": "Ukraine", "lat": 49.4444, "lng": 32.0598 },
+  { "id": "lviv", "city": "Lviv", "country": "Ukraine", "lat": 49.8397, "lng": 24.0297 },
+  { "id": "ivano-frankivsk", "city": "Ivano-Frankivsk", "country": "Ukraine", "lat": 48.9226, "lng": 24.7111, "labelPosition": "bottom" },
+  { "id": "tallinn", "city": "Tallinn", "country": "Estonia", "lat": 59.437, "lng": 24.7536 },
+  { "id": "valencia", "city": "Valencia", "country": "Spain", "lat": 39.4699, "lng": -0.3763 },
+  { "id": "vienna", "city": "Vienna", "country": "Austria", "lat": 48.2082, "lng": 16.3738, "labelPosition": "left" },
+  { "id": "wroclaw", "city": "Wrocław", "country": "Poland", "lat": 51.1079, "lng": 17.0385 },
+  { "id": "brussels", "city": "Brussels", "country": "Belgium", "lat": 50.8503, "lng": 4.3517 },
+  { "id": "rome", "city": "Rome", "country": "Italy", "lat": 41.9028, "lng": 12.4964 },
+  { "id": "berlin", "city": "Berlin", "country": "Germany", "lat": 52.52, "lng": 13.405 },
+  { "id": "frankfurt", "city": "Frankfurt", "country": "Germany", "lat": 50.1109, "lng": 8.6821 },
+  { "id": "istanbul", "city": "Istanbul", "country": "Türkiye", "lat": 41.0082, "lng": 28.9784 },
+  { "id": "warsaw", "city": "Warsaw", "country": "Poland", "lat": 52.2297, "lng": 21.0122 },
+  { "id": "krakow", "city": "Kraków", "country": "Poland", "lat": 50.0647, "lng": 19.945 },
+  { "id": "budapest", "city": "Budapest", "country": "Hungary", "lat": 47.4979, "lng": 19.0402 },
+  { "id": "copenhagen", "city": "Copenhagen", "country": "Denmark", "lat": 55.6761, "lng": 12.5683 },
+  { "id": "pieniny", "city": "Pieniny", "country": "Poland", "lat": 49.4137, "lng": 20.5523, "labelPosition": "bottom" }
+]

@@ -1,0 +1,10 @@
+{
+  "title": "European Marathon Classics",
+  "cities": [
+    { "locationId": "rome", "status": "completed" },
+    { "locationId": "copenhagen", "status": "completed" },
+    { "locationId": "warsaw", "status": "completed" },
+    { "locationId": "frankfurt", "status": "completed" },
+    { "locationId": "vienna", "status": "pending", "note": "2018 result unrecorded by chip — awaiting series acceptance" }
+  ]
+}
