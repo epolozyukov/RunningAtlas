@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Minus, Plus, Route, Play, X } from 'lucide-react';
-import { classics, locationsById, races } from './data';
-import type { Filters } from './types';
+import { ArrowLeft, Compass, Footprints, Minus, Plus, Route, Play, X } from 'lucide-react';
+import { classics, locationsById, marathons, races } from './data';
+import type { DiscoverFilters as DiscoverFilterState, Filters } from './types';
 import { applyFilters, CATEGORY_META, yearsOf } from './utils/raceHelpers';
 import { computeStats } from './utils/statistics';
 import { aggregateByCity, buildJourneyArcs, framedPointOfView, hasWebGL, haversineKm } from './utils/geographicHelpers';
@@ -16,6 +16,11 @@ import RunningTimeline from './components/RunningTimeline';
 import PersonalRecords from './components/PersonalRecords';
 import EuropeanClassics from './components/EuropeanClassics';
 import JourneyPlayback from './components/JourneyPlayback';
+import DiscoverFilters from './components/DiscoverFilters';
+import DiscoverIntro from './components/DiscoverIntro';
+import MarathonDetailPanel from './components/MarathonDetailPanel';
+import MarathonExplorer from './components/MarathonExplorer';
+import { applyDiscoverFilters, buildDiscoverMarkers, DEFAULT_DISCOVER_FILTERS } from './utils/marathonHelpers';
 
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
@@ -34,6 +39,9 @@ const GlobeView = lazy(() => import('./components/GlobeView'));
 const JOURNEY_STEP_MS = 4200;
 const ALL_YEARS = yearsOf(races);
 const OVERALL = computeStats(races, locationsById);
+const DISCOVER_ALL = buildDiscoverMarkers(marathons, races);
+
+type Mode = 'mine' | 'discover';
 
 export default function App() {
   const [filters, setFilters] = useState<Filters>({ category: 'all', year: 'all' });
@@ -42,6 +50,9 @@ export default function App() {
   const [showRoute, setShowRoute] = useState(false);
   const [journey, setJourney] = useState<{ index: number; playing: boolean } | null>(null);
   const [zoom, setZoom] = useState<ZoomBucket>('far');
+  const [mode, setMode] = useState<Mode>('mine');
+  const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilterState>(DEFAULT_DISCOVER_FILTERS);
+  const [selectedMarathonId, setSelectedMarathonId] = useState<string | null>(null);
 
   const isMobile = useMediaQuery('(max-width: 760px)');
   const isWide = useMediaQuery('(min-width: 1100px)');
@@ -55,16 +66,20 @@ export default function App() {
   const isFiltered = filters.category !== 'all' || filters.year !== 'all';
 
   const journeyRaces = journey ? races.slice(0, journey.index + 1) : null;
-  const markers = useMemo(
+  const discoverFiltered = useMemo(() => applyDiscoverFilters(DISCOVER_ALL, discoverFilters), [discoverFilters]);
+  const isDiscover = mode === 'discover' && !journey;
+  const cityMarkers = useMemo(
     () => aggregateByCity(journeyRaces ?? filteredRaces, locationsById),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filteredRaces, journey?.index, !!journey],
   );
+  const markers = isDiscover ? discoverFiltered : cityMarkers;
   const arcs = useMemo(() => {
     if (journeyRaces) return buildJourneyArcs(journeyRaces, locationsById);
+    if (mode === 'discover') return [];
     return showRoute ? buildJourneyArcs(filteredRaces, locationsById) : [];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredRaces, showRoute, journey?.index, !!journey]);
+  }, [filteredRaces, showRoute, journey?.index, !!journey, mode]);
 
   const filterSummary = isFiltered
     ? [filters.category !== 'all' ? CATEGORY_META[filters.category].plural : null, filters.year !== 'all' ? String(filters.year) : null]
@@ -73,16 +88,22 @@ export default function App() {
     : null;
 
   // ── Camera helpers ─────────────────────────────────────────────────
-  const focusLocation = useCallback(
-    (locationId: string, altitude?: number) => {
-      const loc = locationsById[locationId];
+  const focusPoint = useCallback(
+    (lat: number, lng: number, altitude?: number) => {
       const g = globeRef.current;
-      if (!loc || !g) return;
+      if (!g) return;
       const alt = altitude ?? Math.min(g.getAltitude(), 1.05);
-      const pov = framedPointOfView(loc.lat, loc.lng, alt, isMobile);
+      const pov = framedPointOfView(lat, lng, alt, isMobile);
       g.flyTo(pov.lat, pov.lng, pov.altitude, 1300);
     },
     [isMobile],
+  );
+  const focusLocation = useCallback(
+    (locationId: string, altitude?: number) => {
+      const loc = locationsById[locationId];
+      if (loc) focusPoint(loc.lat, loc.lng, altitude);
+    },
+    [focusPoint],
   );
 
   const scrollToGlobe = useCallback(() => {
@@ -90,21 +111,47 @@ export default function App() {
   }, [reducedMotion]);
 
   // ── Selection ──────────────────────────────────────────────────────
+  const selectMarathon = useCallback(
+    (id: string, scroll = false) => {
+      const m = marathons.find((x) => x.id === id);
+      if (!m) return;
+      setJourney(null);
+      setMode('discover');
+      setSelectedCityId(null);
+      setSelectedRaceId(null);
+      setSelectedMarathonId(id);
+      if (scroll) scrollToGlobe();
+      focusPoint(m.lat, m.lng);
+    },
+    [focusPoint, scrollToGlobe],
+  );
+
   const selectCity = useCallback(
     (id: string) => {
       if (journey) return;
+      if (mode === 'discover') return selectMarathon(id);
       setSelectedCityId(id);
       setSelectedRaceId(null);
       focusLocation(id);
     },
-    [focusLocation, journey],
+    [focusLocation, journey, mode, selectMarathon],
   );
+
+  const switchMode = (next: Mode) => {
+    if (next === mode) return;
+    setMode(next);
+    setSelectedCityId(null);
+    setSelectedRaceId(null);
+    setSelectedMarathonId(null);
+  };
 
   const selectRace = useCallback(
     (id: string, scroll = false) => {
       const race = races.find((r) => r.id === id);
       if (!race) return;
       setJourney(null);
+      setMode('mine');
+      setSelectedMarathonId(null);
       setSelectedCityId(race.locationId);
       setSelectedRaceId(id);
       if (scroll) scrollToGlobe();
@@ -116,11 +163,13 @@ export default function App() {
   const closePanel = useCallback(() => {
     setSelectedCityId(null);
     setSelectedRaceId(null);
+    setSelectedMarathonId(null);
   }, []);
 
   // ── Journey playback ───────────────────────────────────────────────
   const startJourney = () => {
     closePanel();
+    setMode('mine');
     setShowRoute(false);
     scrollToGlobe();
     setJourney({ index: 0, playing: true });
@@ -173,7 +222,8 @@ export default function App() {
   const allCityRaces = selectedCityId ? races.filter((r) => r.locationId === selectedCityId) : [];
   const filteredCityRaces = allCityRaces.filter((r) => filteredRaces.includes(r));
   const cityRaces = filteredCityRaces.length ? filteredCityRaces : allCityRaces;
-  const panelOpen = !!selectedLocation && !journey;
+  const selectedMarathon = isDiscover && selectedMarathonId ? DISCOVER_ALL.find((m) => m.id === selectedMarathonId) ?? null : null;
+  const panelOpen = ((!!selectedLocation && !isDiscover) || !!selectedMarathon) && !journey;
 
   return (
     <>
@@ -185,7 +235,11 @@ export default function App() {
           data-zoom={zoom}
         >
           <div className="explore__intro">
-            <HeroStats stats={stats} overall={OVERALL} filtered={isFiltered} />
+            {isDiscover ? (
+              <DiscoverIntro all={DISCOVER_ALL} filtered={discoverFiltered} />
+            ) : (
+              <HeroStats stats={stats} overall={OVERALL} filtered={isFiltered} />
+            )}
           </div>
 
           <div className="explore__globe">
@@ -195,7 +249,8 @@ export default function App() {
                 ref={globeRef}
                 markers={markers}
                 arcs={arcs}
-                selectedCityId={journey ? races[journey.index].locationId : selectedCityId}
+                selectedCityId={journey ? races[journey.index].locationId : isDiscover ? selectedMarathonId : selectedCityId}
+                legend={isDiscover ? 'discover' : 'mine'}
                 autoRotate={!panelOpen && !journey}
                 reducedMotion={reducedMotion}
                 offsetX={isWide ? 150 : 0}
@@ -211,7 +266,8 @@ export default function App() {
                 <div className="globe-fallback__cities">
                   {markers.map((m) => (
                     <button key={m.id} type="button" className="chip" onClick={() => selectCity(m.id)}>
-                      {m.location.city} <span className="muted">{m.races.length}</span>
+                      {m.kind === 'discover' ? m.marathon.city : m.location.city}{' '}
+                      <span className="muted">{m.kind === 'discover' ? m.myRaces.length || '' : m.races.length}</span>
                     </button>
                   ))}
                 </div>
@@ -220,7 +276,19 @@ export default function App() {
 
             {!journey && (
               <div className="globe-ui globe-ui--top">
-                <MapFilters filters={filters} years={ALL_YEARS} onChange={setFilters} />
+                <div className="mode-switch" role="tablist" aria-label="Globe mode">
+                  <button type="button" role="tab" aria-selected={mode === 'mine'} className={mode === 'mine' ? 'is-active' : ''} onClick={() => switchMode('mine')}>
+                    <Footprints size={13} /> My races
+                  </button>
+                  <button type="button" role="tab" aria-selected={mode === 'discover'} className={mode === 'discover' ? 'is-active' : ''} onClick={() => switchMode('discover')}>
+                    <Compass size={13} /> Discover
+                  </button>
+                </div>
+                {mode === 'discover' ? (
+                  <DiscoverFilters filters={discoverFilters} onChange={setDiscoverFilters} />
+                ) : (
+                  <MapFilters filters={filters} years={ALL_YEARS} onChange={setFilters} />
+                )}
               </div>
             )}
 
@@ -229,7 +297,7 @@ export default function App() {
                 <button type="button" className="btn-journey" onClick={startJourney}>
                   <Play size={14} /> Play my journey
                 </button>
-                <button
+                {!isDiscover && <button
                   type="button"
                   className={`btn-icon ${showRoute ? 'is-active' : ''}`}
                   aria-pressed={showRoute}
@@ -238,7 +306,7 @@ export default function App() {
                 >
                   <Route size={16} />
                   <span>Route</span>
-                </button>
+                </button>}
               </div>
             )}
 
@@ -253,7 +321,21 @@ export default function App() {
               </div>
             )}
 
-            {panelOpen && selectedLocation && (
+            {panelOpen && selectedMarathon && (
+              <aside className="panel" aria-label={`${selectedMarathon.marathon.name} details`}>
+                <div className="panel__bar">
+                  <span className="panel__grip" aria-hidden />
+                  <button type="button" className="panel__close" onClick={closePanel} aria-label="Close">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="panel__body" key={selectedMarathon.id}>
+                  <MarathonDetailPanel marker={selectedMarathon} onSelectRace={(id) => selectRace(id)} />
+                </div>
+              </aside>
+            )}
+
+            {panelOpen && !selectedMarathon && selectedLocation && (
               <aside className="panel" aria-label={`${selectedLocation.city} details`}>
                 <div className="panel__bar">
                   {selectedRace ? (
@@ -337,6 +419,17 @@ export default function App() {
             }}
           />
         </section>
+        <MarathonExplorer
+          all={DISCOVER_ALL}
+          filtered={discoverFiltered}
+          filters={discoverFilters}
+          onChange={(f) => {
+            setDiscoverFilters(f);
+            switchMode('discover');
+          }}
+          onReset={() => setDiscoverFilters(DEFAULT_DISCOVER_FILTERS)}
+          onSelect={(id) => selectMarathon(id, true)}
+        />
       </main>
 
       <footer className="site-footer">

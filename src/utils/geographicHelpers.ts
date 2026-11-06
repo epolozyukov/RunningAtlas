@@ -8,7 +8,7 @@ export function aggregateByCity(list: Race[], locationsById: Record<string, Loca
     if (!location) continue;
     let m = map.get(location.id);
     if (!m) {
-      m = { id: location.id, location, races: [], counts: { marathon: 0, half: 0, ultra: 0 }, hasPB: false };
+      m = { kind: 'city', id: location.id, location, races: [], counts: { marathon: 0, half: 0, ultra: 0 }, hasPB: false };
       map.set(location.id, m);
     }
     m.races.push(r);

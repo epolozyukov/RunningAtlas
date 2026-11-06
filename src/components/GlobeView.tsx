@@ -1,10 +1,12 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import Globe, { type GlobeInstance } from 'globe.gl';
 import * as THREE from 'three';
-import type { CityMarker } from '../types';
+import type { GlobeMarker } from '../types';
 import type { JourneyArc } from '../utils/geographicHelpers';
 import { createEarthCanvas } from '../utils/earthTexture';
-import { createMarkerElement } from './GlobeMarkers';
+import { createDiscoverMarkerElement, createMarkerElement } from './GlobeMarkers';
+
+const markerPos = (m: GlobeMarker) => (m.kind === 'discover' ? m.marathon : m.location);
 import { CATEGORY_META } from '../utils/raceHelpers';
 import '../styles/globe.css';
 
@@ -16,13 +18,14 @@ export interface GlobeHandle {
 
 interface Props {
   ref?: Ref<GlobeHandle>;
-  markers: CityMarker[];
+  markers: GlobeMarker[];
   arcs: JourneyArc[];
   selectedCityId: string | null;
   autoRotate: boolean;
   reducedMotion: boolean;
   /** Horizontal offset (px) of the globe centre, leaving room for the intro. */
   offsetX?: number;
+  legend?: 'mine' | 'discover';
   onSelectCity: (id: string) => void;
   onSelectRace: (id: string) => void;
   onBackgroundClick?: () => void;
@@ -49,6 +52,7 @@ export default function GlobeView({
   autoRotate,
   reducedMotion,
   offsetX = 0,
+  legend = 'mine',
   onSelectCity,
   onSelectRace,
   onBackgroundClick,
@@ -150,20 +154,23 @@ export default function GlobeView({
 
     // HTML markers
     globe
-      .htmlLat((d) => (d as CityMarker).location.lat)
-      .htmlLng((d) => (d as CityMarker).location.lng)
+      .htmlLat((d) => markerPos(d as GlobeMarker).lat)
+      .htmlLng((d) => markerPos(d as GlobeMarker).lng)
       .htmlAltitude(0.004)
       .htmlTransitionDuration(0)
       .htmlElement((d) => {
-        const m = d as CityMarker;
-        const node = createMarkerElement(
-          m,
-          {
-            onSelectCity: (id) => handlersRef.current.onSelectCity(id),
-            onSelectRace: (id) => handlersRef.current.onSelectRace(id),
-          },
-          m.location.labelPosition,
-        );
+        const m = d as GlobeMarker;
+        const node =
+          m.kind === 'discover'
+            ? createDiscoverMarkerElement(m, (id) => handlersRef.current.onSelectCity(id))
+            : createMarkerElement(
+                m,
+                {
+                  onSelectCity: (id) => handlersRef.current.onSelectCity(id),
+                  onSelectRace: (id) => handlersRef.current.onSelectRace(id),
+                },
+                m.location.labelPosition,
+              );
         // Elements are created asynchronously by globe.gl — apply current selection state.
         const sel = selectedRef.current;
         node.classList.toggle('gm--selected', sel === m.id);
@@ -191,8 +198,8 @@ export default function GlobeView({
 
     // Selection rings
     globe
-      .ringLat((d) => (d as CityMarker).location.lat)
-      .ringLng((d) => (d as CityMarker).location.lng)
+      .ringLat((d) => markerPos(d as GlobeMarker).lat)
+      .ringLng((d) => markerPos(d as GlobeMarker).lng)
       .ringAltitude(0.002)
       .ringColor(() => (t: number) => `rgba(242,240,234,${0.55 * (1 - t)})`)
       .ringMaxRadius(2.6)
@@ -302,18 +309,35 @@ export default function GlobeView({
     <div className={`globe-stage ${ready ? 'is-ready' : ''}`} data-zoom={zoom}>
       <div className="globe-glow" aria-hidden />
       <div ref={mountRef} className="globe-mount" aria-label="Interactive 3D globe of race locations" role="application" />
-      <div className="globe-legend" aria-hidden>
-        {(['marathon', 'half', 'ultra'] as const).map((c) => (
-          <span key={c}>
-            <i style={{ background: CATEGORY_META[c].color }} />
-            {CATEGORY_META[c].plural}
+      {legend === 'discover' ? (
+        <div className="globe-legend" aria-hidden>
+          <span>
+            <i style={{ background: CATEGORY_META.marathon.color }} />
+            Completed
           </span>
-        ))}
-        <span>
-          <i className="legend-pb" />
-          Personal best
-        </span>
-      </div>
+          <span>
+            <i className="legend-todo" />
+            Not yet run
+          </span>
+          <span>
+            <i className="legend-major" />
+            World Marathon Major
+          </span>
+        </div>
+      ) : (
+        <div className="globe-legend" aria-hidden>
+          {(['marathon', 'half', 'ultra'] as const).map((c) => (
+            <span key={c}>
+              <i style={{ background: CATEGORY_META[c].color }} />
+              {CATEGORY_META[c].plural}
+            </span>
+          ))}
+          <span>
+            <i className="legend-pb" />
+            Personal best
+          </span>
+        </div>
+      )}
     </div>
   );
 }

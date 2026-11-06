@@ -3,6 +3,7 @@ const NAV = [
   { href: '#history', label: 'Race History', short: 'History' },
   { href: '#timeline', label: 'Timeline', short: 'Timeline' },
   { href: '#achievements', label: 'Achievements', short: 'Records' },
+  { href: '#discover', label: 'Discover', short: 'Discover' },
 ];
 
 export default function Header() {

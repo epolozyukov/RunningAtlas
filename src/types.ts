@@ -14,6 +14,40 @@ export interface Race {
   bib?: string;
   pb?: boolean;
   notes?: string;
+  /** Link to a catalog entry in marathons.json (marks it as completed in Discover). */
+  eventId?: string;
+}
+
+export type Continent = 'europe' | 'asia' | 'north-america' | 'south-america' | 'africa' | 'oceania';
+
+/** A known marathon from the Discover catalog. Month is the typical month, not a fixed date. */
+export interface Marathon {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  continent: Continent;
+  lat: number;
+  lng: number;
+  /** 1–12 */
+  month: number;
+  /** Abbott World Marathon Major */
+  major?: boolean;
+}
+
+export interface DiscoverMarker {
+  kind: 'discover';
+  id: string;
+  marathon: Marathon;
+  /** My races at this event (empty = not yet run). */
+  myRaces: Race[];
+}
+
+export interface DiscoverFilters {
+  continent: Continent | 'all';
+  month: number | 'all';
+  status: 'all' | 'todo' | 'done';
+  query: string;
 }
 
 export interface Location {
@@ -27,12 +61,15 @@ export interface Location {
 }
 
 export interface CityMarker {
+  kind: 'city';
   id: string;
   location: Location;
   races: Race[];
   counts: Record<Category, number>;
   hasPB: boolean;
 }
+
+export type GlobeMarker = CityMarker | DiscoverMarker;
 
 export type CategoryFilter = 'all' | Category;
 

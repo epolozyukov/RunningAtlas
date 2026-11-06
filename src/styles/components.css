@@ -372,7 +372,7 @@
 .panel {
   position: absolute;
   z-index: 20;
-  top: calc(var(--header-h) + 64px);
+  top: calc(var(--header-h) + 112px); /* below mode switch + filters */
   right: var(--gutter);
   bottom: 24px;
   width: min(380px, calc(100vw - 2 * var(--gutter)));
@@ -1607,5 +1607,295 @@
   .classics__status {
     align-items: flex-end;
     text-align: right;
+  }
+}
+
+/* ═════════════════════════ Discover ═════════════════════════ */
+.globe-ui--top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 2 * var(--gutter));
+}
+@media (min-width: 1100px) {
+  .globe-ui--top {
+    max-width: calc(100vw - 420px);
+  }
+}
+.globe-ui--top > .filters {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.mode-switch {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: rgba(23, 29, 31, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.mode-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  border-radius: 999px;
+  transition: color 0.2s, background 0.2s;
+}
+.mode-switch button:hover {
+  color: var(--text);
+}
+.mode-switch button.is-active {
+  color: var(--text);
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.filters--discover .filters__year + .filters__year select {
+  border-radius: 0 999px 999px 0;
+}
+.filters--discover .filters__year:not(:last-child) select {
+  border-radius: 0;
+}
+
+.globe-legend .legend-todo {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--text);
+}
+.globe-legend .legend-major {
+  width: 9px;
+  height: 9px;
+  background: transparent;
+  border: 1.5px solid var(--half);
+}
+
+/* Marathon panel */
+.marathon-panel__major {
+  margin: 10px 0 0;
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--half);
+  border: 1px solid rgba(226, 183, 106, 0.45);
+  border-radius: 3px;
+}
+.marathon-panel__month {
+  margin: 4px 0 0;
+  font-family: var(--font-serif);
+  font-size: 52px;
+  line-height: 1;
+}
+
+/* Explorer section */
+.explorer__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 36px;
+}
+.explorer__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip--outline {
+  border: 1px solid var(--line-strong);
+}
+.chip--outline.is-active {
+  border-color: var(--text);
+}
+.explorer__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.explorer__search {
+  flex: 1 1 260px;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 38px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text-2);
+}
+.explorer__search:focus-within {
+  border-color: var(--text-2);
+}
+.explorer__search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+}
+.explorer__search input::placeholder {
+  color: var(--text-3);
+}
+.explorer__status {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.explorer__count {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--line);
+}
+.calendar__month {
+  padding: 0 20px 28px 0;
+  border-bottom: 1px solid var(--line);
+}
+.calendar__head {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 18px 0 10px;
+  text-align: left;
+}
+.calendar__head h3 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.calendar__head span {
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.calendar__head:hover h3,
+.calendar__month.is-active .calendar__head h3 {
+  color: var(--pb);
+}
+.calendar__month ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.calendar__month li button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  text-align: left;
+}
+.calendar__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--text-2);
+}
+.calendar__month li button.is-done .calendar__dot {
+  background: var(--marathon);
+  box-shadow: none;
+}
+.calendar__name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  line-height: 1.3;
+  transition: color 0.2s;
+}
+.calendar__name small {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.calendar__month li button:hover .calendar__name {
+  color: #fff;
+}
+.calendar__major {
+  font-style: normal;
+  margin-left: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--half);
+}
+.calendar__done {
+  font-size: 11px;
+  color: var(--marathon);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.explorer__note {
+  margin: 24px 0 0;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+@media (max-width: 1099px) {
+  .calendar {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .calendar {
+    grid-template-columns: 1fr 1fr;
+  }
+  .calendar__month {
+    padding-right: 12px;
+  }
+  .calendar__head h3 {
+    font-size: 24px;
+  }
+  .mode-switch button {
+    padding: 6px 12px;
+    font-size: 10.5px;
+  }
+  .globe-ui--top {
+    max-width: none;
+  }
+  .explorer__status .chip {
+    padding: 6px 10px;
+  }
+}
+@media (max-width: 420px) {
+  .calendar {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .globe-ui--top {
+    align-items: stretch;
+  }
+  .globe-ui--top .mode-switch {
+    align-self: center;
   }
 }

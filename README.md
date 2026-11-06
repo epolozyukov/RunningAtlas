@@ -54,6 +54,17 @@ Edit data only — no component changes are needed.
 
 3. European Marathon Classics status lives in `src/data/classics.json`.
 
+4. If the race is in the Discover catalog, add `"eventId": "<catalog id>"` to the race so it
+   shows as completed there.
+
+## Discover catalog
+
+`src/data/marathons.json` lists well-known marathons worldwide:
+`id`, `name`, `city`, `country`, `continent` (`europe` | `asia` | `north-america` |
+`south-america` | `africa` | `oceania`), `lat`, `lng`, `month` (1–12, the month the race is
+usually held) and an optional `major: true` for World Marathon Majors. Add or edit entries
+freely. Months come from recent editions, so check the official site for exact dates.
+
 ## Structure
 
 ```

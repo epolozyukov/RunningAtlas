@@ -1,5 +1,6 @@
-import type { Category, CityMarker } from '../types';
+import type { Category, CityMarker, DiscoverMarker } from '../types';
 import { CATEGORY_META, CATEGORY_ORDER, formatShortDate } from '../utils/raceHelpers';
+import { monthShort } from '../utils/marathonHelpers';
 
 export interface MarkerHandlers {
   onSelectCity: (cityId: string) => void;
@@ -90,5 +91,56 @@ export function createMarkerElement(marker: CityMarker, handlers: MarkerHandlers
   // Stop the globe from treating marker presses as drags.
   root.addEventListener('pointerdown', (e) => e.stopPropagation());
 
+  return root;
+}
+
+/**
+ * Marker for a catalog marathon in Discover mode: hollow ring when not yet run,
+ * filled coral when completed, a thin gold halo for World Marathon Majors.
+ * Reuses the .gm label/zoom CSS (majors behave like multi-race cities at mid zoom).
+ */
+export function createDiscoverMarkerElement(marker: DiscoverMarker, onSelect: (id: string) => void): HTMLElement {
+  const { marathon: m, myRaces } = marker;
+  const done = myRaces.length > 0;
+
+  const root = el('div', 'gm gm--discover');
+  root.dataset.id = marker.id;
+  root.dataset.label = 'right';
+  root.tabIndex = 0;
+  root.setAttribute('role', 'button');
+  root.setAttribute(
+    'aria-label',
+    `${m.name}, ${m.city}, ${m.country} — usually ${monthShort(m.month)}${done ? ', completed' : ''}`,
+  );
+  if (done) root.classList.add('gm--done');
+  if (m.major) root.classList.add('gm--major', 'gm--multi');
+  root.style.setProperty('--size', m.major ? '11px' : '8px');
+
+  const halo = el('span', 'gm__halo');
+  const dot = el('span', 'gm__dot');
+  if (myRaces.length > 1) dot.appendChild(el('span', 'gm__count', String(myRaces.length)));
+
+  const label = el('span', 'gm__label');
+  const name = el('span', 'gm__city', m.city);
+  name.appendChild(el('span', 'gm__month', ` · ${monthShort(m.month)}`));
+  label.appendChild(name);
+  const detail = el('span', 'gm__races');
+  detail.appendChild(el('span', 'gm__event', m.name));
+  label.appendChild(detail);
+
+  root.append(halo, dot, label);
+
+  const select = (e: Event) => {
+    e.stopPropagation();
+    onSelect(marker.id);
+  };
+  root.addEventListener('click', select);
+  root.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      select(e);
+    }
+  });
+  root.addEventListener('pointerdown', (e) => e.stopPropagation());
   return root;
 }
