@@ -3,3 +3,11 @@ dist
 .DS_Store
 *.log
 *.tsbuildinfo
+
+# Local secrets (never commit)
+.env
+.env.*
+!.env.example
+
+# Vercel CLI link data
+.vercel

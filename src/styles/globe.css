@@ -23,6 +23,9 @@
 .globe-mount {
   position: absolute;
   inset: 0;
+  /* Contain marker z-indexes (set inline by globe.gl) so they never paint over panels. */
+  z-index: 0;
+  isolation: isolate;
   opacity: 0;
   transition: opacity 1.4s var(--ease);
   cursor: grab;

@@ -1,8 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Compass, Footprints, Minus, Plus, Route, Play, X } from 'lucide-react';
-import { classics, locationsById, marathons, races } from './data';
-import type { DiscoverFilters as DiscoverFilterState, Filters } from './types';
-import { applyFilters, CATEGORY_META, yearsOf } from './utils/raceHelpers';
+import { buildDataset, classics, marathons, marathonsById } from './data';
+import { createUserRace, downloadFile, exportRacesJson, isUserRace, loadUserRaces, saveUserRaces } from './utils/userRaces';
+import type { DiscoverFilters as DiscoverFilterState, Filters, Race } from './types';
+import { applyFilters, CATEGORY_META, raceSeconds, yearsOf } from './utils/raceHelpers';
 import { computeStats } from './utils/statistics';
 import { aggregateByCity, buildJourneyArcs, framedPointOfView, hasWebGL, haversineKm } from './utils/geographicHelpers';
 import Header from './components/Header';
@@ -20,6 +21,8 @@ import DiscoverFilters from './components/DiscoverFilters';
 import DiscoverIntro from './components/DiscoverIntro';
 import MarathonDetailPanel from './components/MarathonDetailPanel';
 import MarathonExplorer from './components/MarathonExplorer';
+import TripPlanner from './components/TripPlanner';
+import AddResultForm from './components/AddResultForm';
 import { applyDiscoverFilters, buildDiscoverMarkers, DEFAULT_DISCOVER_FILTERS } from './utils/marathonHelpers';
 
 function useMediaQuery(query: string) {
@@ -37,13 +40,28 @@ function useMediaQuery(query: string) {
 const GlobeView = lazy(() => import('./components/GlobeView'));
 
 const JOURNEY_STEP_MS = 4200;
-const ALL_YEARS = yearsOf(races);
-const OVERALL = computeStats(races, locationsById);
-const DISCOVER_ALL = buildDiscoverMarkers(marathons, races);
-
 type Mode = 'mine' | 'discover';
 
 export default function App() {
+  // ── Data: built-in races + results added in this browser ──────────
+  const [userRaces, setUserRaces] = useState(loadUserRaces);
+  const { races, locationsById } = useMemo(() => buildDataset(userRaces), [userRaces]);
+  const ALL_YEARS = useMemo(() => yearsOf(races), [races]);
+  const OVERALL = useMemo(() => computeStats(races, locationsById), [races, locationsById]);
+  const DISCOVER_ALL = useMemo(() => buildDiscoverMarkers(marathons, races), [races]);
+  const RUNNER_CONTEXT = useMemo(
+    () =>
+      [
+        `- Marathon PB ${OVERALL.marathonPB?.result ?? 'n/a'}${OVERALL.marathonPB ? ` (${locationsById[OVERALL.marathonPB.locationId].city}, ${OVERALL.marathonPB.date.slice(0, 4)})` : ''}; half marathon PB ${OVERALL.halfPB?.result ?? 'n/a'}.`,
+        `- ${OVERALL.counts.marathon} marathons, ${OVERALL.counts.half} halves and ${OVERALL.counts.ultra} ultras since ${OVERALL.firstYear}; typical marathon around ${OVERALL.marathonAverageSec ? new Date(OVERALL.marathonAverageSec * 1000).toISOString().slice(12, 19) : 'n/a'}.`,
+        `- Based in Europe; has raced mostly in Poland, Ukraine and across Europe.`,
+      ].join('\n'),
+    [OVERALL, locationsById],
+  );
+  const updateUserRaces = useCallback((next: Race[]) => {
+    setUserRaces(next);
+    if (!saveUserRaces(next)) console.warn('[Running Atlas] Could not save results in this browser.');
+  }, []);
   const [filters, setFilters] = useState<Filters>({ category: 'all', year: 'all' });
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   const [selectedRaceId, setSelectedRaceId] = useState<string | null>(null);
@@ -53,6 +71,12 @@ export default function App() {
   const [mode, setMode] = useState<Mode>('mine');
   const [discoverFilters, setDiscoverFilters] = useState<DiscoverFilterState>(DEFAULT_DISCOVER_FILTERS);
   const [selectedMarathonId, setSelectedMarathonId] = useState<string | null>(null);
+  /** What the Discover panel shows for the selected marathon. */
+  const [marathonView, setMarathonView] = useState<'details' | 'plan' | 'add'>('details');
+  const [plannerUsed, setPlannerUsed] = useState(false);
+  const [editingRaceId, setEditingRaceId] = useState<string | null>(null);
+  const plannerOpen = marathonView === 'plan';
+  const setPlannerOpen = (open: boolean) => setMarathonView(open ? 'plan' : 'details');
 
   const isMobile = useMediaQuery('(max-width: 760px)');
   const isWide = useMediaQuery('(min-width: 1100px)');
@@ -61,17 +85,17 @@ export default function App() {
   const globeRef = useRef<GlobeHandle>(null);
 
   // ── Derived data ───────────────────────────────────────────────────
-  const filteredRaces = useMemo(() => applyFilters(races, filters), [filters]);
-  const stats = useMemo(() => computeStats(filteredRaces, locationsById), [filteredRaces]);
+  const filteredRaces = useMemo(() => applyFilters(races, filters), [races, filters]);
+  const stats = useMemo(() => computeStats(filteredRaces, locationsById), [filteredRaces, locationsById]);
   const isFiltered = filters.category !== 'all' || filters.year !== 'all';
 
   const journeyRaces = journey ? races.slice(0, journey.index + 1) : null;
-  const discoverFiltered = useMemo(() => applyDiscoverFilters(DISCOVER_ALL, discoverFilters), [discoverFilters]);
+  const discoverFiltered = useMemo(() => applyDiscoverFilters(DISCOVER_ALL, discoverFilters), [DISCOVER_ALL, discoverFilters]);
   const isDiscover = mode === 'discover' && !journey;
   const cityMarkers = useMemo(
     () => aggregateByCity(journeyRaces ?? filteredRaces, locationsById),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filteredRaces, journey?.index, !!journey],
+    [filteredRaces, locationsById, journey?.index, !!journey],
   );
   const markers = isDiscover ? discoverFiltered : cityMarkers;
   const arcs = useMemo(() => {
@@ -79,7 +103,7 @@ export default function App() {
     if (mode === 'discover') return [];
     return showRoute ? buildJourneyArcs(filteredRaces, locationsById) : [];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredRaces, showRoute, journey?.index, !!journey, mode]);
+  }, [filteredRaces, locationsById, showRoute, journey?.index, !!journey, mode]);
 
   const filterSummary = isFiltered
     ? [filters.category !== 'all' ? CATEGORY_META[filters.category].plural : null, filters.year !== 'all' ? String(filters.year) : null]
@@ -120,6 +144,8 @@ export default function App() {
       setSelectedCityId(null);
       setSelectedRaceId(null);
       setSelectedMarathonId(id);
+      setPlannerOpen(false);
+      setPlannerUsed(false);
       if (scroll) scrollToGlobe();
       focusPoint(m.lat, m.lng);
     },
@@ -157,14 +183,26 @@ export default function App() {
       if (scroll) scrollToGlobe();
       focusLocation(race.locationId);
     },
-    [focusLocation, scrollToGlobe],
+    [focusLocation, scrollToGlobe, races],
   );
 
   const closePanel = useCallback(() => {
     setSelectedCityId(null);
     setSelectedRaceId(null);
     setSelectedMarathonId(null);
+    setPlannerOpen(false);
+    setPlannerUsed(false);
+    setEditingRaceId(null);
   }, []);
+
+  /** Delete a result added in this browser; closes the panel if its city has no races left. */
+  const deleteUserRace = (id: string) => {
+    const race = races.find((r) => r.id === id);
+    updateUserRaces(userRaces.filter((r) => r.id !== id));
+    setEditingRaceId(null);
+    setSelectedRaceId(null);
+    if (race && !races.some((r) => r.locationId === race.locationId && r.id !== id)) closePanel();
+  };
 
   // ── Journey playback ───────────────────────────────────────────────
   const startJourney = () => {
@@ -206,6 +244,8 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (journey) setJourney(null);
+        else if (marathonView !== 'details' && selectedMarathonId) setMarathonView('details');
+        else if (editingRaceId) setEditingRaceId(null);
         else if (selectedRaceId) setSelectedRaceId(null);
         else closePanel();
       }
@@ -214,7 +254,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [journey, selectedRaceId, closePanel]);
+  }, [journey, selectedRaceId, closePanel, marathonView, selectedMarathonId, editingRaceId]);
 
   // ── Panel content ──────────────────────────────────────────────────
   const selectedLocation = selectedCityId ? locationsById[selectedCityId] : null;
@@ -281,7 +321,7 @@ export default function App() {
                     <Footprints size={13} /> My races
                   </button>
                   <button type="button" role="tab" aria-selected={mode === 'discover'} className={mode === 'discover' ? 'is-active' : ''} onClick={() => switchMode('discover')}>
-                    <Compass size={13} /> Discover
+                    <Compass size={13} /> Discover &amp; Add
                   </button>
                 </div>
                 {mode === 'discover' ? (
@@ -322,16 +362,53 @@ export default function App() {
             )}
 
             {panelOpen && selectedMarathon && (
-              <aside className="panel" aria-label={`${selectedMarathon.marathon.name} details`}>
+              <aside className={`panel ${plannerOpen ? 'panel--wide' : ''}`} aria-label={`${selectedMarathon.marathon.name} details`}>
                 <div className="panel__bar">
-                  <span className="panel__grip" aria-hidden />
+                  {marathonView !== 'details' ? (
+                    <button type="button" className="panel__back" onClick={() => setMarathonView('details')}>
+                      <ArrowLeft size={14} /> {selectedMarathon.marathon.name}
+                    </button>
+                  ) : (
+                    <span className="panel__grip" aria-hidden />
+                  )}
                   <button type="button" className="panel__close" onClick={closePanel} aria-label="Close">
                     <X size={16} />
                   </button>
                 </div>
-                <div className="panel__body" key={selectedMarathon.id}>
-                  <MarathonDetailPanel marker={selectedMarathon} onSelectRace={(id) => selectRace(id)} />
-                </div>
+                {/* The chat stays mounted once opened, so going back to details keeps the conversation. */}
+                {plannerUsed && (
+                  <div className="panel__body panel__body--chat" hidden={!plannerOpen}>
+                    <TripPlanner marker={selectedMarathon} runnerContext={RUNNER_CONTEXT} />
+                  </div>
+                )}
+                {marathonView === 'details' && (
+                  <div className="panel__body" key={selectedMarathon.id}>
+                    <MarathonDetailPanel
+                      marker={selectedMarathon}
+                      onSelectRace={(id) => selectRace(id)}
+                      onPlan={() => {
+                        setMarathonView('plan');
+                        setPlannerUsed(true);
+                      }}
+                      onAdd={() => setMarathonView('add')}
+                    />
+                  </div>
+                )}
+                {marathonView === 'add' && (
+                  <div className="panel__body" key={`add-${selectedMarathon.id}`}>
+                    <AddResultForm
+                      marathon={selectedMarathon.marathon}
+                      takenDates={selectedMarathon.myRaces.map((r) => r.date)}
+                      currentPbSec={OVERALL.marathonPB ? raceSeconds(OVERALL.marathonPB) : null}
+                      onSave={(input) => {
+                        const race = createUserRace(selectedMarathon.marathon, input);
+                        updateUserRaces([...userRaces, race]);
+                        return race;
+                      }}
+                      onView={(id) => selectRace(id)}
+                    />
+                  </div>
+                )}
               </aside>
             )}
 
@@ -339,7 +416,7 @@ export default function App() {
               <aside className="panel" aria-label={`${selectedLocation.city} details`}>
                 <div className="panel__bar">
                   {selectedRace ? (
-                    <button type="button" className="panel__back" onClick={() => setSelectedRaceId(null)}>
+                    <button type="button" className="panel__back" onClick={() => { setEditingRaceId(null); setSelectedRaceId(null); }}>
                       <ArrowLeft size={14} /> {selectedLocation.city}
                     </button>
                   ) : (
@@ -351,7 +428,29 @@ export default function App() {
                 </div>
                 <div className="panel__body" key={selectedRace?.id ?? selectedLocation.id}>
                   {selectedRace ? (
-                    <RaceDetailPanel race={selectedRace} location={selectedLocation} />
+                    editingRaceId === selectedRace.id && selectedRace.eventId && marathonsById[selectedRace.eventId] ? (
+                      <AddResultForm
+                        key={`edit-${selectedRace.id}`}
+                        marathon={marathonsById[selectedRace.eventId]}
+                        initial={selectedRace}
+                        takenDates={races.filter((r) => r.eventId === selectedRace.eventId && r.id !== selectedRace.id).map((r) => r.date)}
+                        onSave={(input) => {
+                          const updated: Race = { ...selectedRace, date: input.date, result: input.result, bib: input.bib.trim() || undefined, notes: input.notes.trim() || undefined };
+                          updateUserRaces(userRaces.map((r) => (r.id === updated.id ? { ...updated, pb: undefined } : r)));
+                          setEditingRaceId(null);
+                          return updated;
+                        }}
+                        onCancel={() => setEditingRaceId(null)}
+                        onDelete={() => deleteUserRace(selectedRace.id)}
+                      />
+                    ) : (
+                      <RaceDetailPanel
+                        race={selectedRace}
+                        location={selectedLocation}
+                        onEdit={isUserRace(selectedRace) ? () => setEditingRaceId(selectedRace.id) : undefined}
+                        onDelete={isUserRace(selectedRace) ? () => deleteUserRace(selectedRace.id) : undefined}
+                      />
+                    )
                   ) : (
                     <CityDetailPanel
                       location={selectedLocation}
@@ -387,6 +486,8 @@ export default function App() {
           onSelectRace={(id) => selectRace(id, true)}
           filterSummary={filterSummary}
           onClearFilters={() => setFilters({ category: 'all', year: 'all' })}
+          addedCount={userRaces.length}
+          onExport={() => downloadFile('races.json', exportRacesJson(userRaces))}
         />
 
         <RunningTimeline

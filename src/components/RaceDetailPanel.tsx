@@ -1,14 +1,18 @@
+import { Pencil, Trash2 } from 'lucide-react';
 import type { Location, Race } from '../types';
 import { CATEGORY_META, formatLongDate } from '../utils/raceHelpers';
 
 interface Props {
   race: Race;
   location: Location;
+  /** Present for results added in this browser. */
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const fmtCoord = (v: number, pos: string, neg: string) => `${Math.abs(v).toFixed(4)}° ${v >= 0 ? pos : neg}`;
 
-export default function RaceDetailPanel({ race, location }: Props) {
+export default function RaceDetailPanel({ race, location, onEdit, onDelete }: Props) {
   const meta = CATEGORY_META[race.category];
   const distance =
     race.category === 'ultra' ? `${race.distanceKm} km` : `${race.distanceKm.toLocaleString('en-US', { maximumFractionDigits: 4 })} km`;
@@ -62,6 +66,29 @@ export default function RaceDetailPanel({ race, location }: Props) {
 
       {race.notes && <p className="race-panel__notes">{race.notes}</p>}
       {!race.approximate && <p className="race-panel__footnote">All results are net chip times.</p>}
+      {(onEdit || onDelete) && (
+        <div className="race-panel__added">
+          <span>Added by you, saved in this browser.</span>
+          <span className="race-panel__added-actions">
+            {onEdit && (
+              <button type="button" className="btn-ghost" onClick={onEdit}>
+                <Pencil size={13} /> Edit
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                className="add-result__delete"
+                onClick={() => {
+                  if (window.confirm(`Delete your ${race.name} result (${race.result})? This can’t be undone.`)) onDelete();
+                }}
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+            )}
+          </span>
+        </div>
+      )}
     </article>
   );
 }

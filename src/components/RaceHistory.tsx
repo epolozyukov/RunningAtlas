@@ -7,9 +7,12 @@ interface Props {
   onSelectRace: (id: string) => void;
   filterSummary: string | null;
   onClearFilters: () => void;
+  /** Results added in this browser (not yet in races.json). */
+  addedCount: number;
+  onExport: () => void;
 }
 
-export default function RaceHistory({ races, locationsById, onSelectRace, filterSummary, onClearFilters }: Props) {
+export default function RaceHistory({ races, locationsById, onSelectRace, filterSummary, onClearFilters, addedCount, onExport }: Props) {
   const byYear = new Map<number, Race[]>();
   for (const r of [...races].reverse()) {
     const y = raceYear(r);
@@ -34,6 +37,18 @@ export default function RaceHistory({ races, locationsById, onSelectRace, filter
           )}
         </p>
       </header>
+
+      {addedCount > 0 && (
+        <div className="history__export">
+          <p>
+            <strong>{addedCount}</strong> {addedCount === 1 ? 'result' : 'results'} added in this browser. To keep{' '}
+            {addedCount === 1 ? 'it' : 'them'} for good, download the updated races.json, replace <code>src/data/races.json</code> and commit.
+          </p>
+          <button type="button" className="btn-ghost" onClick={onExport}>
+            Download races.json
+          </button>
+        </div>
+      )}
 
       {races.length === 0 && <p className="empty">No races match these filters.</p>}
 

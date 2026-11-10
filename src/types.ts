@@ -33,6 +33,10 @@ export interface Marathon {
   month: number;
   /** Abbott World Marathon Major */
   major?: boolean;
+  /** General course profile. */
+  course: 'flat' | 'rolling' | 'hilly';
+  /** Known as a fast, PB-friendly course. */
+  fast?: boolean;
 }
 
 export interface DiscoverMarker {

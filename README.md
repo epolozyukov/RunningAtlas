@@ -14,10 +14,17 @@ npm run preview   # serve the production build
 
 ## Deploy
 
-`dist/` is a plain static site with relative asset paths (`base: './'`), so it works as-is on:
+Hosted on **Vercel** (free Hobby plan). On vercel.com: Add New → Project → import this
+GitHub repo → Deploy. `vercel.json` sets the build (`npm run build` → `dist`) and the
+security headers (CSP, no framing, nosniff, referrer and permissions policies). Every push
+to `main` redeploys automatically.
 
-- **Vercel / Netlify** — build command `npm run build`, output directory `dist`.
-- **GitHub Pages** — publish the `dist/` folder (works from a project sub-path).
+- No environment variables are needed. Do **not** add `VITE_GROQ_API_KEY` in Vercel.
+- Deploy through the GitHub import (Vercel builds from the repo). Avoid local
+  `vercel build` / `vercel --prebuilt` uploads.
+
+`dist/` is a plain static site with relative asset paths (`base: './'`), so it also works on
+Netlify or GitHub Pages.
 
 All assets are local: the Earth texture is painted at runtime from bundled Natural Earth
 data (`world-atlas`), relief comes from `public/textures/earth-topology.png`, fonts are
@@ -46,8 +53,7 @@ Edit data only — no component changes are needed.
    - `date`: `YYYY-MM` or `YYYY-MM-DD`.
    - `category`: `marathon` | `half` | `ultra`.
    - `result`: stored as displayed. Set `"approximate": true` for estimates (excluded from averages and PBs).
-   - `pb`: display flag for the PB halo. Move it off the old PB race when you set a new one.
-     (The Personal Records section always computes the fastest time itself.)
+   - PBs are calculated automatically (fastest exact marathon / half), so no `pb` flag is needed.
 
 2. If it is a new city, add it to `src/data/locations.json` with `id`, `city`, `country`,
    `lat`, `lng` (optionally `labelPosition: "left" | "bottom"` for crowded areas).
@@ -57,6 +63,15 @@ Edit data only — no component changes are needed.
 4. If the race is in the Discover catalog, add `"eventId": "<catalog id>"` to the race so it
    shows as completed there.
 
+## Adding results in the app
+
+Discover & Add → click a marathon → **Add my result** (date, net time, optional bib and notes).
+The result appears straight away across the globe, history, timeline, stats, PBs and Discover.
+It's saved in that browser only (static site, no backend). To make it permanent, use
+**Download races.json** in Race History, replace `src/data/races.json` and commit. Results
+already present in races.json are ignored if they're still in the browser, so they're never
+shown twice. Results added in the browser can be removed from their race panel.
+
 ## Discover catalog
 
 `src/data/marathons.json` lists well-known marathons worldwide:
@@ -64,6 +79,24 @@ Edit data only — no component changes are needed.
 `south-america` | `africa` | `oceania`), `lat`, `lng`, `month` (1–12, the month the race is
 usually held) and an optional `major: true` for World Marathon Majors. Add or edit entries
 freely. Months come from recent editions, so check the official site for exact dates.
+
+Each entry also has `course` (`flat` | `rolling` | `hilly`) and optional `fast: true` for
+PB-friendly courses.
+
+## Trip planner (Discover → marathon → Plan this trip)
+
+- Typical race-month weather comes from real observations via the free
+  [Open-Meteo](https://open-meteo.com) historical archive (no key needed), averaged over the
+  last 3 years and cached in the browser.
+- The chat uses free models on [Groq](https://console.groq.com). Each visitor pastes their own
+  free Groq API key, which is stored only in their browser (`localStorage`) and sent only to Groq.
+  The production build sets a Content Security Policy that only allows connections to Groq
+  and Open-Meteo (see `vite.config.ts`).
+- For local development you can put your key in `.env` (copy `.env.example`):
+  `VITE_GROQ_API_KEY=gsk_…`, then restart `npm run dev`. It is used by the dev server only;
+  production builds never include it, so a deployed site can't leak it. A key saved in the
+  browser takes priority. `.env` is git-ignored.
+- Budgets and travel details are AI estimates, not live prices.
 
 ## Structure
 
