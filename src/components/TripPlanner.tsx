@@ -7,7 +7,7 @@ import { CONTINENT_LABEL, monthName } from '../utils/marathonHelpers';
 import { getTypicalWeather, type TypicalWeather } from '../utils/climate';
 import { priceGuide } from '../utils/costs';
 import BudgetTable, { parseBudget } from './BudgetTable';
-import { MODEL, getApiKey, setApiKey, listModels, streamChat, GroqError, type ChatMessage } from '../utils/groq';
+import { MODEL, getApiKey, setApiKey, listModels, streamChat, sharedPlannerAvailable, GroqError, type ChatMessage } from '../utils/groq';
 
 interface Props {
   marker: DiscoverMarker;
@@ -138,6 +138,8 @@ function Markdown({ text }: { text: string }) {
 export default function TripPlanner({ marker, runnerContext }: Props) {
   const r = marker.marathon;
   const [apiKey, setKey] = useState(getApiKey);
+  // Shared planner on the deployed site: null while checking.
+  const [shared, setShared] = useState<boolean | null>(apiKey ? false : null);
   const [keyDraft, setKeyDraft] = useState('');
   const [checkingKey, setCheckingKey] = useState(false);
   const [keyError, setKeyError] = useState('');
@@ -173,8 +175,13 @@ export default function TripPlanner({ marker, runnerContext }: Props) {
   }, [messages]);
 
   useEffect(() => {
-    if (apiKey) inputRef.current?.focus();
+    if (!apiKey) sharedPlannerAvailable().then(setShared);
   }, [apiKey]);
+
+  const ready = !!apiKey || shared === true;
+  useEffect(() => {
+    if (ready) inputRef.current?.focus();
+  }, [ready]);
 
   const saveKey = async (e: FormEvent) => {
     e.preventDefault();
@@ -250,8 +257,16 @@ export default function TripPlanner({ marker, runnerContext }: Props) {
     setBusy(false);
   };
 
-  // ── Key setup ──
-  if (!apiKey) {
+  if (!ready && shared === null) {
+    return (
+      <div className="planner">
+        <p className="muted planner__checking">Connecting the trip planner…</p>
+      </div>
+    );
+  }
+
+  // ── Key setup (only when the site has no shared planner) ──
+  if (!ready) {
     return (
       <div className="planner">
         <div className="planner__setup">
@@ -328,6 +343,7 @@ export default function TripPlanner({ marker, runnerContext }: Props) {
         <textarea
           ref={inputRef}
           rows={1}
+          maxLength={2000}
           value={input}
           placeholder={messages.length === 1 ? 'e.g. Kraków, with my wife and daughter, 4 days' : 'Reply or ask a follow-up…'}
           onChange={(e) => setInput(e.target.value)}
@@ -349,7 +365,7 @@ export default function TripPlanner({ marker, runnerContext }: Props) {
           </button>
         )}
       </form>
-      <p className="planner__disclaimer">AI estimates. Check prices, dates and entry rules before booking.</p>
+      <p className="planner__disclaimer">AI estimates (via Groq). Check prices, dates and entry rules before booking. Don’t share personal details.</p>
     </div>
   );
 }

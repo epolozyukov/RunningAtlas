@@ -88,8 +88,15 @@ PB-friendly courses.
 - Typical race-month weather comes from real observations via the free
   [Open-Meteo](https://open-meteo.com) historical archive (no key needed), averaged over the
   last 3 years and cached in the browser.
-- The chat uses free models on [Groq](https://console.groq.com). Each visitor pastes their own
-  free Groq API key, which is stored only in their browser (`localStorage`) and sent only to Groq.
+- The chat uses free models on [Groq](https://console.groq.com).
+- **On Vercel** the server function `api/chat.js` holds the owner's key, so visitors don't
+  need one. Set `GROQ_API_KEY` (no `VITE_` prefix) in Vercel → Settings → Environment
+  Variables, then redeploy. The function only accepts trip-planner requests from this site,
+  fixes the model, caps message size and conversation length, and rate-limits per visitor
+  (best effort, per server instance). Optional `ALLOWED_ORIGINS` (comma-separated) allows
+  extra origins.
+- Without `GROQ_API_KEY`, visitors paste their own free Groq key, which is stored only in
+  their browser (`localStorage`) and sent only to Groq. A visitor's own key always takes priority.
   The production build sets a Content Security Policy that only allows connections to Groq
   and Open-Meteo (see `vite.config.ts`).
 - For local development you can put your key in `.env` (copy `.env.example`):
