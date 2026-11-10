@@ -9,7 +9,8 @@ interface Props {
   marker: DiscoverMarker;
   onSelectRace: (id: string) => void;
   onPlan: () => void;
-  onAdd: () => void;
+  /** Omitted on the public site, which hides "Add my result". */
+  onAdd?: () => void;
 }
 
 const COURSE_LABEL = { flat: 'Flat', rolling: 'Rolling', hilly: 'Hilly' } as const;
@@ -61,9 +62,11 @@ export default function MarathonDetailPanel({ marker, onSelectRace, onPlan, onAd
         <button type="button" className="btn-journey" onClick={onPlan}>
           <Sparkles size={14} /> Plan this trip
         </button>
-        <button type="button" className="btn-ghost marathon-panel__add" onClick={onAdd}>
-          <Plus size={14} /> Add my result
-        </button>
+        {onAdd && (
+          <button type="button" className="btn-ghost marathon-panel__add" onClick={onAdd}>
+            <Plus size={14} /> Add my result
+          </button>
+        )}
       </div>
 
       <ul className="marathon-panel__facts">

@@ -1,7 +1,6 @@
 /**
- * Minimal Groq client (OpenAI-compatible API).
- * A visitor's own key (localStorage) calls Groq directly from the browser. Without one,
- * requests go to the site's /api/chat proxy, which holds the owner's key server-side.
+ * Minimal Groq client (OpenAI-compatible API) used directly from the browser.
+ * The API key is the visitor's own free Groq key, stored only in localStorage.
  */
 const BASE = 'https://api.groq.com/openai/v1';
 const KEY_STORAGE = 'ra:groq:key';
@@ -63,17 +62,6 @@ async function errorFrom(res: Response): Promise<GroqError> {
   return new GroqError(detail || `Groq request failed (${res.status}).`, res.status);
 }
 
-/** The proxy already returns visitor-friendly messages. */
-async function proxyErrorFrom(res: Response): Promise<GroqError> {
-  try {
-    const body = await res.json();
-    if (body?.error?.message) return new GroqError(body.error.message, res.status);
-  } catch {
-    /* ignore */
-  }
-  return new GroqError('The trip planner is unavailable right now. Please try again later.', res.status);
-}
-
 /** Lists models for this key; used to validate a pasted key. */
 export async function listModels(apiKey: string): Promise<string[]> {
   const res = await fetch(`${BASE}/models`, { headers: { Authorization: `Bearer ${apiKey}` } });
@@ -86,32 +74,15 @@ export async function listModels(apiKey: string): Promise<string[]> {
 }
 
 
-/** Same-site server function holding the owner's key (see api/chat.js). */
-const PROXY_URL = '/api/chat';
-let proxyCheck: Promise<boolean> | null = null;
-
-/** Whether the deployed site offers the shared planner (no visitor key needed). */
-export function sharedPlannerAvailable(): Promise<boolean> {
-  proxyCheck ??= fetch(PROXY_URL, { headers: { Accept: 'application/json' } })
-    .then((r) => (r.ok ? r.json() : null))
-    .then((b) => b?.available === true)
-    .catch(() => false);
-  return proxyCheck;
-}
-
-/**
- * Stream a chat completion; calls onDelta with each text chunk. Resolves with the full text.
- * With an apiKey it calls Groq directly; without one it goes through the shared proxy.
- */
+/** Stream a chat completion; calls onDelta with each text chunk. Resolves with the full text. */
 export async function streamChat(
   opts: { apiKey: string; model: string; messages: ChatMessage[]; signal?: AbortSignal },
   onDelta: (text: string) => void,
 ): Promise<string> {
-  const viaProxy = !opts.apiKey;
-  const res = await fetch(viaProxy ? PROXY_URL : `${BASE}/chat/completions`, {
+  const res = await fetch(`${BASE}/chat/completions`, {
     method: 'POST',
-    headers: viaProxy ? { 'Content-Type': 'application/json' } : { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
-    body: viaProxy ? JSON.stringify({ messages: opts.messages }) : JSON.stringify({
+    headers: { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       model: opts.model,
       messages: opts.messages,
       stream: true,
@@ -123,7 +94,7 @@ export async function streamChat(
     }),
     signal: opts.signal,
   });
-  if (!res.ok || !res.body) throw viaProxy ? await proxyErrorFrom(res) : await errorFrom(res);
+  if (!res.ok || !res.body) throw await errorFrom(res);
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

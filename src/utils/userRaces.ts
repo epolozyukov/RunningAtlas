@@ -7,6 +7,12 @@ import { baseRaces, locationIdForMarathon } from '../data';
  */
 const STORAGE_KEY = 'ra:userRaces:v1';
 
+/**
+ * Adding, editing and deleting your own results: on for `npm run dev`, off on the public
+ * site. Set VITE_ENABLE_EDITING=true at build time to turn it on there too.
+ */
+export const RESULTS_EDITING: boolean = import.meta.env.DEV || import.meta.env.VITE_ENABLE_EDITING === 'true';
+
 export function loadUserRaces(): Race[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

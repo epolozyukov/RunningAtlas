@@ -65,6 +65,9 @@ Edit data only — no component changes are needed.
 
 ## Adding results in the app
 
+Only in `npm run dev`: the public site is read-only (the tab is just "Discover", with no Add,
+Edit or Delete). To turn it on in a production build, set `VITE_ENABLE_EDITING=true`.
+
 Discover & Add → click a marathon → **Add my result** (date, net time, optional bib and notes).
 The result appears straight away across the globe, history, timeline, stats, PBs and Discover.
 It's saved in that browser only (static site, no backend). To make it permanent, use
@@ -88,15 +91,9 @@ PB-friendly courses.
 - Typical race-month weather comes from real observations via the free
   [Open-Meteo](https://open-meteo.com) historical archive (no key needed), averaged over the
   last 3 years and cached in the browser.
-- The chat uses free models on [Groq](https://console.groq.com).
-- **On Vercel** the server function `api/chat.js` holds the owner's key, so visitors don't
-  need one. Set `GROQ_API_KEY` (no `VITE_` prefix) in Vercel → Settings → Environment
-  Variables, then redeploy. The function only accepts trip-planner requests from this site,
-  fixes the model, caps message size and conversation length, and rate-limits per visitor
-  (best effort, per server instance). Optional `ALLOWED_ORIGINS` (comma-separated) allows
-  extra origins.
-- Without `GROQ_API_KEY`, visitors paste their own free Groq key, which is stored only in
-  their browser (`localStorage`) and sent only to Groq. A visitor's own key always takes priority.
+- The chat uses free models on [Groq](https://console.groq.com). Each visitor pastes their own
+  free Groq API key, which is stored only in their browser (`localStorage`) and sent only to Groq.
+  The site owner's key is never used on the public site.
   The production build sets a Content Security Policy that only allows connections to Groq
   and Open-Meteo (see `vite.config.ts`).
 - For local development you can put your key in `.env` (copy `.env.example`):

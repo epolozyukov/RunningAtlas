@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Compass, Footprints, Minus, Plus, Route, Play, X } from 'lucide-react';
 import { buildDataset, classics, marathons, marathonsById } from './data';
-import { createUserRace, downloadFile, exportRacesJson, isUserRace, loadUserRaces, saveUserRaces } from './utils/userRaces';
+import { RESULTS_EDITING, createUserRace, downloadFile, exportRacesJson, isUserRace, loadUserRaces, saveUserRaces } from './utils/userRaces';
 import type { DiscoverFilters as DiscoverFilterState, Filters, Race } from './types';
 import { applyFilters, CATEGORY_META, raceSeconds, yearsOf } from './utils/raceHelpers';
 import { computeStats } from './utils/statistics';
@@ -44,7 +44,8 @@ type Mode = 'mine' | 'discover';
 
 export default function App() {
   // ── Data: built-in races + results added in this browser ──────────
-  const [userRaces, setUserRaces] = useState(loadUserRaces);
+  // The public site shows only the built-in races.json.
+  const [userRaces, setUserRaces] = useState(() => (RESULTS_EDITING ? loadUserRaces() : []));
   const { races, locationsById } = useMemo(() => buildDataset(userRaces), [userRaces]);
   const ALL_YEARS = useMemo(() => yearsOf(races), [races]);
   const OVERALL = useMemo(() => computeStats(races, locationsById), [races, locationsById]);
@@ -321,7 +322,7 @@ export default function App() {
                     <Footprints size={13} /> My races
                   </button>
                   <button type="button" role="tab" aria-selected={mode === 'discover'} className={mode === 'discover' ? 'is-active' : ''} onClick={() => switchMode('discover')}>
-                    <Compass size={13} /> Discover &amp; Add
+                    <Compass size={13} /> {RESULTS_EDITING ? 'Discover & Add' : 'Discover'}
                   </button>
                 </div>
                 {mode === 'discover' ? (
@@ -390,7 +391,7 @@ export default function App() {
                         setMarathonView('plan');
                         setPlannerUsed(true);
                       }}
-                      onAdd={() => setMarathonView('add')}
+                      onAdd={RESULTS_EDITING ? () => setMarathonView('add') : undefined}
                     />
                   </div>
                 )}
@@ -447,8 +448,8 @@ export default function App() {
                       <RaceDetailPanel
                         race={selectedRace}
                         location={selectedLocation}
-                        onEdit={isUserRace(selectedRace) ? () => setEditingRaceId(selectedRace.id) : undefined}
-                        onDelete={isUserRace(selectedRace) ? () => deleteUserRace(selectedRace.id) : undefined}
+                        onEdit={RESULTS_EDITING && isUserRace(selectedRace) ? () => setEditingRaceId(selectedRace.id) : undefined}
+                        onDelete={RESULTS_EDITING && isUserRace(selectedRace) ? () => deleteUserRace(selectedRace.id) : undefined}
                       />
                     )
                   ) : (

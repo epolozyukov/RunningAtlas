@@ -7,7 +7,7 @@ import { CONTINENT_LABEL, monthName } from '../utils/marathonHelpers';
 import { getTypicalWeather, type TypicalWeather } from '../utils/climate';
 import { priceGuide } from '../utils/costs';
 import BudgetTable, { parseBudget } from './BudgetTable';
-import { MODEL, getApiKey, setApiKey, listModels, streamChat, sharedPlannerAvailable, GroqError, type ChatMessage } from '../utils/groq';
+import { MODEL, getApiKey, setApiKey, listModels, streamChat, GroqError, type ChatMessage } from '../utils/groq';
 
 interface Props {
   marker: DiscoverMarker;
@@ -138,8 +138,6 @@ function Markdown({ text }: { text: string }) {
 export default function TripPlanner({ marker, runnerContext }: Props) {
   const r = marker.marathon;
   const [apiKey, setKey] = useState(getApiKey);
-  // Shared planner on the deployed site: null while checking.
-  const [shared, setShared] = useState<boolean | null>(apiKey ? false : null);
   const [keyDraft, setKeyDraft] = useState('');
   const [checkingKey, setCheckingKey] = useState(false);
   const [keyError, setKeyError] = useState('');
@@ -175,13 +173,8 @@ export default function TripPlanner({ marker, runnerContext }: Props) {
   }, [messages]);
 
   useEffect(() => {
-    if (!apiKey) sharedPlannerAvailable().then(setShared);
+    if (apiKey) inputRef.current?.focus();
   }, [apiKey]);
-
-  const ready = !!apiKey || shared === true;
-  useEffect(() => {
-    if (ready) inputRef.current?.focus();
-  }, [ready]);
 
   const saveKey = async (e: FormEvent) => {
     e.preventDefault();
@@ -257,16 +250,8 @@ export default function TripPlanner({ marker, runnerContext }: Props) {
     setBusy(false);
   };
 
-  if (!ready && shared === null) {
-    return (
-      <div className="planner">
-        <p className="muted planner__checking">Connecting the trip planner…</p>
-      </div>
-    );
-  }
-
-  // ── Key setup (only when the site has no shared planner) ──
-  if (!ready) {
+  // ── Key setup ──
+  if (!apiKey) {
     return (
       <div className="planner">
         <div className="planner__setup">
